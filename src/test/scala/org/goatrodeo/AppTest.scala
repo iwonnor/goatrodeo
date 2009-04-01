@@ -1,5 +1,6 @@
 package org.goatrodeo;
 
+/*
 import junit.framework._;
 import Assert._;
 
@@ -27,3 +28,4 @@ class AppTest extends TestCase("app") {
     
 
 }
+*/

@@ -35,6 +35,7 @@ object QBaseT {
 object QBase {
   implicit def sToQ(in: String) = QString(in)
   implicit def bToQ(in: Boolean) = QBoolean(in)
+  implicit def lToQ(in: Long) = QLong(in)
 }
 
 case class QString(is: String) extends QBaseT[String]
@@ -50,18 +51,22 @@ trait QList[T <: QBase] extends QBase
 
 class TRef[T <: QBase](ref: Ref[T]) {
   private var valSet = false
-  private var value: T = _
+  private var _value: T = _
+
+  def value: T = is
+  
+  def value_=(in: T): Unit = set(in)
 
   def is: T = {
-    if (valSet) value
+    if (valSet) _value
     else {
-      value = Transaction.read(ref)
-      value
+      _value = Transaction.read(ref)
+      _value
     }
   }
   def set(in: T): Unit = {
     Transaction.write(ref.name, this)
-    value = in
+    _value = in
   }
   def get: T = is
   def apply(): T = is
@@ -72,13 +77,13 @@ class TRef[T <: QBase](ref: Ref[T]) {
 
 import net.liftweb.util._
 
-trait Ref[T <: QBase] {
+class Ref[T <: QBase](_default: => T) {
   def foreach(f: TRef[T] => Unit): Unit = {
     Transaction {
       f(new TRef(this))
     }
-    throw new Exception("")
   }
+  
   def map[R](f: TRef[T] => R): Box[R] = {
     Transaction {
       f(new TRef(this))
@@ -102,7 +107,7 @@ trait Ref[T <: QBase] {
   }
   private lazy val _calcName = getClass.getName
 
-  def default: T
+  def default: T = _default
 }
 
 class OutsideTransactionError(msg: String) extends Error()
@@ -115,9 +120,34 @@ object Transaction {
   private val xaData: ThreadGlobal[Map[String, (Long, Any)]] = new ThreadGlobal
   private val touched: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal
 
-  def apply[T](what: => T): Box[T] = Full(what)
+  def apply[T](what: => T): Box[T] = {
+    val d = depth
+    val top = d == 0
+    if (top) {
+      xaData.set(dataSnapshot)
+      touched.set(new HashMap)
+    }
+
+    try {
+      xactDepth.doWith(d + 1){
+        Full(what)
+      }
+    } finally {
+      if (top) {
+        xaData.set(null)
+        touched.set(null)
+      }
+    }
+
+  }
+
+  private def depth: Int = xactDepth.value
+
+  private def dataSnapshot = synchronized {data}
+
+
   def inXAction_? = false
-  private[lib] def read[T <: QBase](what: Ref[T]): T = xactDepth.value match {
+  private[lib] def read[T <: QBase](what: Ref[T]): T = depth match {
     case n if n > 0 => xaData.value.get(what.name) match {
         case None => 
           val ret = what.default
@@ -128,11 +158,10 @@ object Transaction {
         case Some((ver, value)) => 
           touched.value(what.name) = ver
           value.asInstanceOf[T]
-    }
+      }
     case _ => throw new OutsideTransactionError("Outside of transaction")
   }
 
   private[lib] def write(what: String, who: TRef[_]) {}
   private[lib] def version(what: String): Long = 0L
 }
-
