@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2008 WorldWide Conferencing, LLC
+ * Copyright 2009 WorldWide Conferencing, LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,17 @@ object BasicSpec extends Specification {
       for (lr <- LongRef) {
       println("lr is "+lr.is)
 
-      lr.is.is mustBe 0L
+      lr.value mustBe 0L
+      }
+    }
+
+    "Be changable" in {
+      for (lr <- LongRef) {
+        lr.value = 4L
+      }
+
+      for (lr <- LongRef) {
+        lr.value mustBe 4L
       }
     }
   }

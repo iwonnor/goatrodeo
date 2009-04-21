@@ -65,8 +65,8 @@ class TRef[T <: QBase](ref: Ref[T]) {
     }
   }
   def set(in: T): Unit = {
-    Transaction.write(ref.name, this)
     _value = in
+    Transaction.write(ref.name, this, in)
   }
   def get: T = is
   def apply(): T = is
@@ -80,18 +80,18 @@ import net.liftweb.util._
 class Ref[T <: QBase](_default: => T) {
   def foreach(f: TRef[T] => Unit): Unit = {
     Transaction {
-      f(new TRef(this))
+      () => f(new TRef(this))
     }
   }
   
   def map[R](f: TRef[T] => R): Box[R] = {
     Transaction {
-      f(new TRef(this))
+      () => f(new TRef(this))
     }
   }
   def flatMap[R](f: TRef[T] => Box[R]): Box[R] = {
     Transaction {
-      f(new TRef(this))
+      () => f(new TRef(this))
     } match {
       case Empty => Empty
       case f: Failure => f
@@ -120,7 +120,7 @@ object Transaction {
   private val xaData: ThreadGlobal[Map[String, (Long, Any)]] = new ThreadGlobal
   private val touched: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal
 
-  def apply[T](what: => T): Box[T] = {
+  def apply[T](what: () => T): Box[T] = {
     val d = depth
     val top = d == 0
     if (top) {
@@ -128,12 +128,17 @@ object Transaction {
       touched.set(new HashMap)
     }
 
+    val (ret, redo) =
     try {
       xactDepth.doWith(d + 1){
-        Full(what)
+        Full(what())
       }
     } finally {
       if (top) {
+        synchronized {
+
+          data = xaData.value
+        }
         xaData.set(null)
         touched.set(null)
       }
@@ -146,7 +151,7 @@ object Transaction {
   private def dataSnapshot = synchronized {data}
 
 
-  def inXAction_? = false
+  // def inXAction_? = false
   private[lib] def read[T <: QBase](what: Ref[T]): T = depth match {
     case n if n > 0 => xaData.value.get(what.name) match {
         case None => 
@@ -162,6 +167,8 @@ object Transaction {
     case _ => throw new OutsideTransactionError("Outside of transaction")
   }
 
-  private[lib] def write(what: String, who: TRef[_]) {}
+  private[lib] def write(what: String, who: TRef[_], newVal: Any) {
+    xaData.set(xaData.value + (what -> (touched.value(what) + 1, newVal)))
+  }
   private[lib] def version(what: String): Long = 0L
 }
