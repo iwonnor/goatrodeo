@@ -130,23 +130,36 @@ object Transaction {
 
     val (ret, redo) =
     try {
-      xactDepth.doWith(d + 1){
+      val r = xactDepth.doWith(d + 1){
         Full(what())
       }
+      val rd = if (!top) false
+      else {
+        synchronized {
+          val good = touched.value.elements.forall{case (n, v) =>
+              data.getOrElse(n, (0L, ""))._1 == v
+          }
+
+          if (good) {
+            data = xaData.value
+          }
+          !good
+        }
+      }
+
+      (r, rd)
     } finally {
       if (top) {
-        synchronized {
-
-          data = xaData.value
-        }
         xaData.set(null)
         touched.set(null)
       }
     }
 
+    if (!redo) ret
+    else apply(what)
   }
 
-  private def depth: Int = xactDepth.value
+  def depth: Int = xactDepth.value
 
   private def dataSnapshot = synchronized {data}
 
@@ -168,6 +181,10 @@ object Transaction {
   }
 
   private[lib] def write(what: String, who: TRef[_], newVal: Any) {
+    if (!touched.value.contains(what)) {
+      touched.value(what) = xaData.value.getOrElse(what, (0L, ""))._1
+    }
+
     xaData.set(xaData.value + (what -> (touched.value(what) + 1, newVal)))
   }
   private[lib] def version(what: String): Long = 0L

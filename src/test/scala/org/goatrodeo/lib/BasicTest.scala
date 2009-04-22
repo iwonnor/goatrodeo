@@ -27,9 +27,8 @@ object BasicSpec extends Specification {
   "A Ref" can {
     "Contain a value" in {
       for (lr <- LongRef) {
-      println("lr is "+lr.is)
 
-      lr.value mustBe 0L
+        lr.value mustBe 0L
       }
     }
 
@@ -41,6 +40,44 @@ object BasicSpec extends Specification {
       for (lr <- LongRef) {
         lr.value mustBe 4L
       }
+    }
+
+    "Must retry if another thread changes things" in {
+      var cnt = 0
+      val foo = "Hello"
+      var done = false
+
+      for (lr <- LongRef) {
+        // Note this is a side effect
+        // This is *very bad*
+        if (cnt == 0) {
+          (new Thread(new Runnable {
+                def run() {
+                  for (lr2 <- LongRef) {
+                    lr2.value = 97L
+                  }
+
+                  foo.synchronized {
+                    done = true
+                    foo.notifyAll
+                  }
+                }
+              })).start
+          foo.synchronized{
+            while (!done) foo.wait
+          }
+        }
+
+        cnt = cnt + 1
+        lr.value = 89L
+      }
+
+      import net.liftweb.util._
+
+      val res: Box[Long] = for (lr <- LongRef) yield lr.value
+
+      res.open_! mustBe 89L
+      cnt must be_>=(2)
     }
   }
 }
