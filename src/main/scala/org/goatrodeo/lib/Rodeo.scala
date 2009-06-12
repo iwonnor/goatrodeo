@@ -18,10 +18,18 @@
 
 package org.goatrodeo.lib
 
+import net.liftweb.util._
+import Helpers._
+
 // import java.io.PrintWriter
 
 trait QBase {
-  // def serialize(pw: PrintWriter): Unit
+  lazy val serialize: String = {
+    val ret = new StringBuilder
+    serialize(ret)
+    ret.toString
+  }
+  def serialize(pw: StringBuilder): Unit
 }
 
 trait QBaseT[T] extends QBase {
@@ -38,16 +46,50 @@ object QBase {
   implicit def lToQ(in: Long) = QLong(in)
 }
 
-case class QString(is: String) extends QBaseT[String]
-case class QInt(is: Int) extends QBaseT[Int]
-case class QLong(is: Long) extends QBaseT[Long]
-case class QBoolean(is: Boolean) extends QBaseT[Boolean]
-case class QByte(is: Byte) extends QBaseT[Byte]
-case class QChar(is: Char) extends QBaseT[Char]
-case class QFloat(is: Float) extends QBaseT[Float]
-case class QDouble(is: Double) extends QBaseT[Double]
-trait QMap[K <: QBase, V <: QBase] extends Map[K, V] with QBase
-trait QList[T <: QBase] extends QBase
+case class QString(is: String) extends QBaseT[String] {
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is.encJs)
+  }
+}
+case class QInt(is: Int) extends QBaseT[Int]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is)
+  }
+}
+case class QLong(is: Long) extends QBaseT[Long]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is)
+  }
+}
+case class QBoolean(is: Boolean) extends QBaseT[Boolean]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is)
+  }
+}
+case class QByte(is: Byte) extends QBaseT[Byte]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is)
+  }
+}
+case class QChar(is: Char) extends QBaseT[Char]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append('\'')
+    pw.append(is)
+    pw.append('\'')
+  }
+}
+case class QFloat(is: Float) extends QBaseT[Float]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is)
+  }
+}
+case class QDouble(is: Double) extends QBaseT[Double]{
+  def serialize(pw: StringBuilder): Unit = {
+    pw.append(is)
+  }
+}
+//trait QMap[K <: QBase, V <: QBase] extends Map[K, V] with QBase
+//trait QList[T <: QBase] extends QBase
 
 class TRef[T <: QBase](ref: Ref[T]) {
   private var valSet = false
