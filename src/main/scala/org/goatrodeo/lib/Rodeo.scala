@@ -21,6 +21,9 @@ package org.goatrodeo.lib
 import net.liftweb.util._
 import Helpers._
 
+import org.apache.zookeeper._
+import data._
+
 // import java.io.PrintWriter
 
 trait QBase {
@@ -154,9 +157,24 @@ class Ref[T <: QBase](_default: => T) {
 
 class OutsideTransactionError(msg: String) extends Error()
 
-object Transaction {
+object Transaction extends Watcher {
   import scala.collection.mutable.HashMap
   private var data: Map[String, (Long, Any)] = Map()
+
+  println("Hello")
+  private val zkServer = {val ret = new ZKMaster; ret.init; ret}
+
+  println("Dog")
+  
+  private val zk = try {new ZooKeeper("localhost:9822", 5000, this)} catch {case e => e.printStackTrace; throw e}
+
+  println("Howdy")
+
+  try {
+  println("Added: "+zk.create("/hello_world-", "Dude".getBytes("UTF-8"), ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL))
+  } catch {
+    case e => e.printStackTrace
+  }
 
   private val xactDepth: ThreadGlobal[Int] = new ThreadGlobal
   private val xaData: ThreadGlobal[Map[String, (Long, Any)]] = new ThreadGlobal
@@ -205,6 +223,9 @@ object Transaction {
 
   private def dataSnapshot = synchronized {data}
 
+  def process(evt: WatchedEvent) {
+    println("Got a watched event: "+evt)
+  }
 
   // def inXAction_? = false
   private[lib] def read[T <: QBase](what: Ref[T]): T = depth match {
