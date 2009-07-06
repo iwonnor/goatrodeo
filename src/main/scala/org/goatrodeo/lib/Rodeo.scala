@@ -23,10 +23,13 @@ import Helpers._
 
 import org.apache.zookeeper._
 import data._
+import java.io._
+import scala.reflect._
 
 // import java.io.PrintWriter
 
-trait QBase {
+@serializable
+trait QBase extends Serializable {
   lazy val serialize: String = {
     val ret = new StringBuilder
     serialize(ret)
@@ -47,6 +50,30 @@ object QBase {
   implicit def sToQ(in: String) = QString(in)
   implicit def bToQ(in: Boolean) = QBoolean(in)
   implicit def lToQ(in: Long) = QLong(in)
+  implicit def iToQ(in: Int) = QInt(in)
+
+  implicit def serialize(in: QBase): Array[Byte] = {
+    val bas = new ByteArrayOutputStream
+    val oos = new ObjectOutputStream(bas)
+
+    oos.writeObject(in)
+
+    oos.flush
+
+    bas.toByteArray
+  }
+
+  implicit def deserialize(in: Array[Byte]): Box[QBase] = {
+    try {
+      val bas = new ByteArrayInputStream(in)
+      val oos = new ObjectInputStream(bas)
+
+      val b = Box !! oos.readObject
+      b.asA[QBase]
+    } catch {
+      case e: IOException => Failure(e.getMessage, Full(e), Empty)
+    }
+  }
 }
 
 case class QString(is: String) extends QBaseT[String] {
@@ -94,13 +121,25 @@ case class QDouble(is: Double) extends QBaseT[Double]{
 //trait QMap[K <: QBase, V <: QBase] extends Map[K, V] with QBase
 //trait QList[T <: QBase] extends QBase
 
-class TRef[T <: QBase](ref: Ref[T]) {
+sealed trait TRef[T <: QBase] {
+  def value: T = is
+
+  def value_=(in: T): Unit = set(in)
+
+  def is: T
+
+  def set(in: T): Unit
+
+  def get: T = is
+  def apply(): T = is
+  def apply(in: T) = set(in)
+  def update(in: T) = set(in)
+  def version: Long
+}
+
+private final class TRefImpl[T <: QBase](ref: Ref[T]) extends TRef[T] {
   private var valSet = false
   private var _value: T = _
-
-  def value: T = is
-  
-  def value_=(in: T): Unit = set(in)
 
   def is: T = {
     if (valSet) _value
@@ -113,10 +152,7 @@ class TRef[T <: QBase](ref: Ref[T]) {
     _value = in
     Transaction.write(ref.name, this, in)
   }
-  def get: T = is
-  def apply(): T = is
-  def apply(in: T) = set(in)
-  def update(in: T) = set(in)
+
   def version: Long = Transaction.version(ref.name)
 }
 
@@ -125,18 +161,18 @@ import net.liftweb.util._
 class Ref[T <: QBase](_default: => T) {
   def foreach(f: TRef[T] => Unit): Unit = {
     Transaction {
-      () => f(new TRef(this))
+      () => f(new TRefImpl(this))
     }
   }
   
   def map[R](f: TRef[T] => R): Box[R] = {
     Transaction {
-      () => f(new TRef(this))
+      () => f(new TRefImpl(this))
     }
   }
   def flatMap[R](f: TRef[T] => Box[R]): Box[R] = {
     Transaction {
-      () => f(new TRef(this))
+      () => f(new TRefImpl(this))
     } match {
       case Empty => Empty
       case f: Failure => f
@@ -171,7 +207,13 @@ object Transaction extends Watcher {
   println("Howdy")
 
   try {
-  println("Added: "+zk.create("/hello_world-", "Dude".getBytes("UTF-8"), ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL))
+    val toSer: QBase = 88
+
+    println("Added: "+zk.create("/hello_world-", toSer , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL))
+
+    val ser: Array[Byte] = toSer
+    val in: Box[QBase] = ser
+    println("In is "+in)
   } catch {
     case e => e.printStackTrace
   }
