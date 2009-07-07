@@ -200,7 +200,7 @@ object Transaction extends Watcher {
   import java.io.ObjectInputStream
   import java.io.IOException
   //private var data: Map[String, (Long, Any)] = Map()
-  private val localStore: HashMap[String, Any] = new HashMap
+  private val localStore: HashMap[String, (Long, Option[QBase])] = new HashMap
 
   println("Hello")
   private val zkServer = {val ret = new ZKMaster; ret.init; ret}
@@ -232,14 +232,14 @@ object Transaction extends Watcher {
   }
 
   private val xactDepth: ThreadGlobal[Int] = new ThreadGlobal
-  private val xaData: ThreadGlobal[HashMap[String, (Long, QBase)]] = new ThreadGlobal
+  private val xaCache: ThreadGlobal[HashMap[String, (Long, Option[QBase])]] = new ThreadGlobal
   private val touched: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal
 
   def apply[T](what: () => T): Box[T] = {
     val d = depth
     val top = d == 0
     if (top) {
-      xaData.set(new HashMap)
+      xaCache.set(new HashMap)
       touched.set(new HashMap)
     }
 
@@ -266,7 +266,7 @@ object Transaction extends Watcher {
       (r, local_redo)
     } finally {
       if (top) {
-        xaData.set(null)
+        xaCache.set(null)
         touched.set(null)
       }
     }
@@ -283,8 +283,8 @@ object Transaction extends Watcher {
     println("Got a watched event: "+evt)
   }
 
-  private def getXAVersion(name: String): Option[(Long, QBase)] = xaData.value.get(name) match {
-    case Some(ret) => Some(ret)
+  private def getXAVersion[T <: QBase](name: String, default: () => T): (Long, T) = xaCache.value.get(name) match {
+    case Some(ret) => ret
     case _ => val nn = normalizeName(name)
       val baseNode = prepend+nn
       if (zk.exists(baseNode, false) eq null) {
@@ -295,15 +295,36 @@ object Transaction extends Watcher {
         }
       }
 
+      import scala.collection.jcl.Conversions._
+
       val verNode = baseNode + "/version"
 
-      if (zk.exists(verNode, ))
+      println("verNode "+verNode)
+
+      def printRes[T](in: T): T = {
+        println("PrintRes "+in)
+        in
+      }
+
+      if (printRes(zk.exists(verNode, false)) eq null) {
+        println("We're fetching")
+        val fetch = baseNode + "/version_fetch-"
+        val myNode = zk.create(fetch, Array() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL)
+        zk.getChildren(baseNode, false).filter(_.indexOf("version_fetch-") >= 0).toList.sort(_ > _) match {
+          case x :: _ if myNode.endsWith(x) => println("Fetching "+myNode) // we fetch
+            val data = readData(name)
+          case n => println("N is "+n+" and myNode is "+myNode) // we wait
+            System.exit(0)
+        }
+
+        ()
+      }
 
     try {
       zk.getData(prepend+nn, false, null)
     } catch {
       case e: KeeperException.NoNodeException => try {
-          zk.create(prepend+nn, array, list, createmode, stringcallback, any)
+          // zk.create(prepend+nn, array, list, createmode, stringcallback, any)
       }
     }
     null
@@ -314,29 +335,33 @@ object Transaction extends Watcher {
 
   private def performCommit(): Boolean = false
 
-  private def readData(name: String): Box[QBase] = synchronized {
+  private def readData(name: String): Box[(Long, Option[QBase])] = synchronized {
     localStore.get(name) match {
       case Some(x: QBase) => Full(x)
       case _ => Empty
     }
   }
 
-  private def writeData(name: String, data: QBase): Unit = synchronized {
-    localStore(name) = QBase
+  private def writeData(name: String, data: (Long, Option[QBase])): Unit = synchronized {
+    localStore(name) = data
   }
 
   // def inXAction_? = false
   private[lib] def read[T <: QBase](what: Ref[T])(implicit mt: Manifest[T]): T = depth match {
     case n if n > 0 => getXAVersion(what.name) match {
-        case None =>
+        /*case None =>
           val ret = what.default
           // xaData.set(xaData.value + what.name -> (0, ret))
           touched.value(what.name) = 0
           ret
-
-        case Some((ver, value)) =>
+*/
+        case (ver, Some(value)) =>
           touched.value(what.name) = ver
           value.asInstanceOf[T]
+
+         case (ver, _) =>
+           touched.value(what.name) = ver
+
       }
     case _ => throw new OutsideTransactionError("Outside of transaction")
   }
