@@ -26,8 +26,6 @@ import data._
 import java.io._
 import scala.reflect._
 
-// import java.io.PrintWriter
-
 @serializable
 trait QBase extends Serializable {
   lazy val serialize: String = {
@@ -137,7 +135,7 @@ sealed trait TRef[T <: QBase] {
   def version: Long
 }
 
-private final class TRefImpl[T <: QBase](ref: Ref[T]) extends TRef[T] {
+private final class TRefImpl[T <: QBase](ref: Ref[T])(implicit mt: Manifest[T]) extends TRef[T] {
   private var valSet = false
   private var _value: T = _
 
@@ -158,13 +156,13 @@ private final class TRefImpl[T <: QBase](ref: Ref[T]) extends TRef[T] {
 
 import net.liftweb.util._
 
-class Ref[T <: QBase](_default: => T) {
+class Ref[T <: QBase](_default: => T)(implicit mt: Manifest[T]) {
   def foreach(f: TRef[T] => Unit): Unit = {
     Transaction {
       () => f(new TRefImpl(this))
     }
   }
-  
+
   def map[R](f: TRef[T] => R): Box[R] = {
     Transaction {
       () => f(new TRefImpl(this))
@@ -180,7 +178,7 @@ class Ref[T <: QBase](_default: => T) {
       case _ => Empty
     }
   }
-  
+
   def prefix: Box[String] = None
   def name: String = prefix match {
     case Full(n) => "/"+n+"/"+_calcName
@@ -194,15 +192,30 @@ class Ref[T <: QBase](_default: => T) {
 class OutsideTransactionError(msg: String) extends Error()
 
 object Transaction extends Watcher {
+  private final val baseNode = "/goat_roedo"
+  private final val prepend = baseNode + "/"
   import scala.collection.mutable.HashMap
-  private var data: Map[String, (Long, Any)] = Map()
+  import java.io.ObjectOutputStream
+  import java.io.ByteArrayInputStream
+  import java.io.ObjectInputStream
+  import java.io.IOException
+  //private var data: Map[String, (Long, Any)] = Map()
+  private val localStore: HashMap[String, Any] = new HashMap
 
   println("Hello")
   private val zkServer = {val ret = new ZKMaster; ret.init; ret}
 
   println("Dog")
-  
-  private val zk = try {new ZooKeeper("localhost:9822", 5000, this)} catch {case e => e.printStackTrace; throw e}
+
+  private val zk = try {
+    val ret = new ZooKeeper("localhost:9822", 5000, this)
+    try {
+      ret.create(baseNode, Array(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+    } catch {
+      case e: KeeperException =>
+    }
+    ret
+  } catch {case e => e.printStackTrace; throw e}
 
   println("Howdy")
 
@@ -219,14 +232,14 @@ object Transaction extends Watcher {
   }
 
   private val xactDepth: ThreadGlobal[Int] = new ThreadGlobal
-  private val xaData: ThreadGlobal[Map[String, (Long, Any)]] = new ThreadGlobal
+  private val xaData: ThreadGlobal[HashMap[String, (Long, QBase)]] = new ThreadGlobal
   private val touched: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal
 
   def apply[T](what: () => T): Box[T] = {
     val d = depth
     val top = d == 0
     if (top) {
-      xaData.set(dataSnapshot)
+      xaData.set(new HashMap)
       touched.set(new HashMap)
     }
 
@@ -235,21 +248,22 @@ object Transaction extends Watcher {
       val r = xactDepth.doWith(d + 1){
         Full(what())
       }
-      val rd = if (!top) false
-      else {
-        synchronized {
-          val good = touched.value.elements.forall{case (n, v) =>
-              data.getOrElse(n, (0L, ""))._1 == v
-          }
+      val local_redo = if (!top) false
+      else !performCommit()
+      /*{
+       synchronized {
+       val good = touched.value.elements.forall{case (n, v) =>
+       data.getOrElse(n, (0L, ""))._1 == v
+       }
 
-          if (good) {
-            data = xaData.value
-          }
-          !good
-        }
-      }
+       if (good) {
+       data = xaData.value
+       }
+       !good
+       }
+       }*/
 
-      (r, rd)
+      (r, local_redo)
     } finally {
       if (top) {
         xaData.set(null)
@@ -263,22 +277,64 @@ object Transaction extends Watcher {
 
   def depth: Int = xactDepth.value
 
-  private def dataSnapshot = synchronized {data}
+  //private def dataSnapshot = synchronized {data}
 
   def process(evt: WatchedEvent) {
     println("Got a watched event: "+evt)
   }
 
+  private def getXAVersion(name: String): Option[(Long, QBase)] = xaData.value.get(name) match {
+    case Some(ret) => Some(ret)
+    case _ => val nn = normalizeName(name)
+      val baseNode = prepend+nn
+      if (zk.exists(baseNode, false) eq null) {
+        try {
+          zk.create(baseNode, Array() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.PERSISTENT)
+        } catch {
+          case e: KeeperException.NodeExistsException =>
+        }
+      }
+
+      val verNode = baseNode + "/version"
+
+      if (zk.exists(verNode, ))
+
+    try {
+      zk.getData(prepend+nn, false, null)
+    } catch {
+      case e: KeeperException.NoNodeException => try {
+          zk.create(prepend+nn, array, list, createmode, stringcallback, any)
+      }
+    }
+    null
+  }
+
+  private def normalizeName(in: String): String =
+  "d"+hexEncode(in.getBytes("UTF-8"))
+
+  private def performCommit(): Boolean = false
+
+  private def readData(name: String): Box[QBase] = synchronized {
+    localStore.get(name) match {
+      case Some(x: QBase) => Full(x)
+      case _ => Empty
+    }
+  }
+
+  private def writeData(name: String, data: QBase): Unit = synchronized {
+    localStore(name) = QBase
+  }
+
   // def inXAction_? = false
-  private[lib] def read[T <: QBase](what: Ref[T]): T = depth match {
-    case n if n > 0 => xaData.value.get(what.name) match {
-        case None => 
+  private[lib] def read[T <: QBase](what: Ref[T])(implicit mt: Manifest[T]): T = depth match {
+    case n if n > 0 => getXAVersion(what.name) match {
+        case None =>
           val ret = what.default
-          xaData.set(xaData.value + what.name -> (0, ret))
+          // xaData.set(xaData.value + what.name -> (0, ret))
           touched.value(what.name) = 0
           ret
-          
-        case Some((ver, value)) => 
+
+        case Some((ver, value)) =>
           touched.value(what.name) = ver
           value.asInstanceOf[T]
       }
@@ -287,10 +343,10 @@ object Transaction extends Watcher {
 
   private[lib] def write(what: String, who: TRef[_], newVal: Any) {
     if (!touched.value.contains(what)) {
-      touched.value(what) = xaData.value.getOrElse(what, (0L, ""))._1
+      touched.value(what) = getXAVersion(what).map(_._1) getOrElse 0L // xaData.value.getOrElse(what, (0L, ""))._1
     }
 
-    xaData.set(xaData.value + (what -> (touched.value(what) + 1, newVal)))
+    //xaData.set(xaData.value + (what -> (touched.value(what) + 1, newVal)))
   }
   private[lib] def version(what: String): Long = 0L
 }
