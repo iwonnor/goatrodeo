@@ -126,7 +126,8 @@ sealed trait TRef[T <: QBase] {
 
   def is: T
 
-  def set(in: T): Unit
+  def set(in: T): Unit = set(Some(in))
+  def set(in: Option[T]): Unit
 
   def get: T = is
   def apply(): T = is
@@ -136,19 +137,19 @@ sealed trait TRef[T <: QBase] {
 }
 
 private final class TRefImpl[T <: QBase](ref: Ref[T])(implicit mt: Manifest[T]) extends TRef[T] {
-  private var valSet = false
-  private var _value: T = _
+  private var _value: Option[T] = Some(Transaction.read(ref))
 
   def is: T = {
-    if (valSet) _value
-    else {
-      _value = Transaction.read(ref)
-      _value
+   _value match {
+      case Some(r) => r
+      case _ => val rv = ref.default
+        _value = Some(rv)
+        rv
     }
   }
-  def set(in: T): Unit = {
+  def set(in: Option[T]): Unit = {
     _value = in
-    Transaction.write(ref.name, this, in)
+    Transaction.write(ref.name, in)
   }
 
   def version: Long = Transaction.version(ref.name)
@@ -200,47 +201,35 @@ object Transaction extends Watcher {
   import java.io.ObjectInputStream
   import java.io.IOException
   //private var data: Map[String, (Long, Any)] = Map()
-  private val localStore: HashMap[String, (Long, Option[QBase])] = new HashMap
+  private val localStore: HashMap[String, QBase] = new HashMap
 
-  println("Hello")
   private val zkServer = {val ret = new ZKMaster; ret.init; ret}
-
-  println("Dog")
 
   private val zk = try {
     val ret = new ZooKeeper("localhost:9822", 5000, this)
+    
+    // make sure a /goat_rodeo node exists
     try {
       ret.create(baseNode, Array(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
     } catch {
       case e: KeeperException =>
     }
+
     ret
   } catch {case e => e.printStackTrace; throw e}
 
-  println("Howdy")
-
-  try {
-    val toSer: QBase = 88
-
-    println("Added: "+zk.create("/hello_world-", toSer , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL))
-
-    val ser: Array[Byte] = toSer
-    val in: Box[QBase] = ser
-    println("In is "+in)
-  } catch {
-    case e => e.printStackTrace
-  }
 
   private val xactDepth: ThreadGlobal[Int] = new ThreadGlobal
-  private val xaCache: ThreadGlobal[HashMap[String, (Long, Option[QBase])]] = new ThreadGlobal
-  private val touched: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal
+  // private val xaCache: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal
+  private val touched: ThreadGlobal[HashMap[String, (Long, String)]] = new ThreadGlobal
+  private val writeCache: ThreadGlobal[HashMap[String, (Long, Option[QBase])]] = new ThreadGlobal
 
   def apply[T](what: () => T): Box[T] = {
     val d = depth
     val top = d == 0
     if (top) {
-      xaCache.set(new HashMap)
       touched.set(new HashMap)
+      writeCache.set(new HashMap)
     }
 
     val (ret, redo) =
@@ -266,8 +255,8 @@ object Transaction extends Watcher {
       (r, local_redo)
     } finally {
       if (top) {
-        xaCache.set(null)
         touched.set(null)
+        writeCache.set(null)
       }
     }
 
@@ -283,8 +272,10 @@ object Transaction extends Watcher {
     println("Got a watched event: "+evt)
   }
 
-  private def getXAVersion[T <: QBase](name: String, default: () => T): (Long, T) = xaCache.value.get(name) match {
-    case Some(ret) => ret
+  import scala.collection.jcl.Conversions._
+
+  private def getXAVersion[T <: QBase](name: String): Long = touched.value.get(name) match {
+    case Some((ret, _)) => ret
     case _ => val nn = normalizeName(name)
       val baseNode = prepend+nn
       if (zk.exists(baseNode, false) eq null) {
@@ -299,79 +290,148 @@ object Transaction extends Watcher {
 
       val verNode = baseNode + "/version"
 
-      println("verNode "+verNode)
+      val readNode = baseNode+"/reading-"
 
-      def printRes[T](in: T): T = {
-        println("PrintRes "+in)
-        in
+      val myReadNode = zk.create(readNode, Array() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL)
+
+      def readVersion(): Long = {
+        val qb: Box[QBase] = zk.getData(verNode, false, null)
+        qb match {
+          case Full(QLong(lng)) => lng
+        }
       }
 
-      if (printRes(zk.exists(verNode, false)) eq null) {
-        println("We're fetching")
+      val ret: Long = if (zk.exists(verNode, false) eq null) {
         val fetch = baseNode + "/version_fetch-"
         val myNode = zk.create(fetch, Array() , ZooDefs.Ids.OPEN_ACL_UNSAFE , CreateMode.EPHEMERAL_SEQUENTIAL)
-        zk.getChildren(baseNode, false).filter(_.indexOf("version_fetch-") >= 0).toList.sort(_ > _) match {
-          case x :: _ if myNode.endsWith(x) => println("Fetching "+myNode) // we fetch
-            val data = readData(name)
-          case n => println("N is "+n+" and myNode is "+myNode) // we wait
-            System.exit(0)
+        zk.getChildren(baseNode, false).filter(_.indexOf("version_fetch-") >= 0).toList.sort(_ < _) match {
+          case x :: _ if myNode.endsWith(x) =>
+            val data: Long = readData(nn+"-ver") match {
+              case Some(QLong(x)) => x
+              case _ => 0L
+            }
+            
+            val qdata: QBase =  QLong(data)
+            zk.create(verNode, qdata, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT)
+            zk.delete(myNode, -1)
+            data
+
+            
+
+          case n =>
+            val obj = new Object
+            obj.synchronized {
+              zk.exists(verNode, new Watcher{
+                  def process(e: WatchedEvent) {
+                    obj.synchronized(obj.notify)
+                  }
+                })
+              obj.wait
+            }
+            zk.delete(myNode, -1)
+            readVersion()
         }
+      } else readVersion()
 
-        ()
-      }
-
-    try {
-      zk.getData(prepend+nn, false, null)
-    } catch {
-      case e: KeeperException.NoNodeException => try {
-          // zk.create(prepend+nn, array, list, createmode, stringcallback, any)
-      }
-    }
-    null
+      touched.value(name) = (ret, myReadNode)
+      ret
   }
 
   private def normalizeName(in: String): String =
   "d"+hexEncode(in.getBytes("UTF-8"))
 
-  private def performCommit(): Boolean = false
+  private def performCommit(): Boolean = {
+    var keepOn = true
 
-  private def readData(name: String): Box[(Long, Option[QBase])] = synchronized {
-    localStore.get(name) match {
-      case Some(x: QBase) => Full(x)
-      case _ => Empty
+    val lockList: List[String] =
+    for {
+      (name, _) <- touched.value.toList if keepOn
+    } yield {
+      val nn = normalizeName(name)
+      val baseNode = prepend+nn
+
+      val commitNode = baseNode+"/committing-"
+      val cn = zk.create(commitNode, Array(), ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL_SEQUENTIAL)
+
+      zk.getChildren(baseNode, false).filter(_.indexOf("committing-") >= 0).toList.sort(_ < _) match {
+        case x :: _ if cn.endsWith(x) =>
+        case _ => keepOn = false
+      }
+
+      cn
+    }
+
+    // test to make sure we've got the latest versions
+    for {
+      (name, (ver, _)) <- touched.value.toList if keepOn
+    } yield {
+      val nn = normalizeName(name)
+      val baseNode = prepend+nn
+
+      val verNode = baseNode+"/version"
+
+      val qb: Box[QBase] = zk.getData(verNode, false, null)
+      qb match {
+        case Full(QLong(lng)) if ver == lng =>
+        case _ => keepOn = false
+      }
+    }
+
+    // it's safe to commit because we own the commit flag on all the nodes we care about
+    // and we've got the latest versions
+    if (keepOn) {
+      for {
+        (name, (ver, data)) <- writeCache.value
+      } {
+        val nn = normalizeName(name)
+        writeData(buildName(name, ver), data)
+        writeData(nn+"-ver", Some(QLong(ver)))
+
+
+        val baseNode = prepend+nn
+
+        val verNode = baseNode+"/version"
+
+        val verQ: QBase = QLong(ver)
+        zk.setData(verNode, verQ, -1)
+      }
+    }
+
+    lockList.foreach(name => zk.delete(name, -1))
+    touched.value.foreach{case (_, (_, name)) => zk.delete(name, -1)}
+    keepOn
+  }
+
+  private def readData(name: String): Option[QBase] = synchronized {
+    localStore.get(name)
+  }
+
+  private def writeData(name: String, data: Option[QBase]): Unit = synchronized {
+    data match {
+      case Some(x) => localStore(name) = x
+      case _ => localStore -= name
     }
   }
 
-  private def writeData(name: String, data: (Long, Option[QBase])): Unit = synchronized {
-    localStore(name) = data
-  }
+  private def buildName(name: String, ver: Long): String =
+  "d"+hexEncode(name.getBytes("UTF-8"))+"-"+ver
 
   // def inXAction_? = false
   private[lib] def read[T <: QBase](what: Ref[T])(implicit mt: Manifest[T]): T = depth match {
-    case n if n > 0 => getXAVersion(what.name) match {
-        /*case None =>
-          val ret = what.default
-          // xaData.set(xaData.value + what.name -> (0, ret))
-          touched.value(what.name) = 0
-          ret
-*/
-        case (ver, Some(value)) =>
-          touched.value(what.name) = ver
-          value.asInstanceOf[T]
+    case n if n > 0 => 
+      val ver = getXAVersion(what.name)
 
-         case (ver, _) =>
-           touched.value(what.name) = ver
-
+      readData(buildName(what.name, ver)) match {
+        case Some(x) => x.asInstanceOf[T]
+        case _ => what.default
       }
+      
     case _ => throw new OutsideTransactionError("Outside of transaction")
   }
 
-  private[lib] def write(what: String, who: TRef[_], newVal: Any) {
-    if (!touched.value.contains(what)) {
-      touched.value(what) = getXAVersion(what).map(_._1) getOrElse 0L // xaData.value.getOrElse(what, (0L, ""))._1
-    }
-
-    //xaData.set(xaData.value + (what -> (touched.value(what) + 1, newVal)))
+  private[lib] def write[T <: QBase](name: String, newVal: Option[T]) {
+    val ver = getXAVersion(name)
+    writeCache.value(name) = (ver + 1, newVal)
   }
   private[lib] def version(what: String): Long = 0L
 }
