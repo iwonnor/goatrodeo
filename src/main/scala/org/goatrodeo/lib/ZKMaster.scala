@@ -9,11 +9,11 @@ package org.goatrodeo.lib
 
 import org.apache.zookeeper.server.quorum._
 
-class ZKMaster extends QuorumPeerMain {
+class ZKMaster(workingDir: String) extends QuorumPeerMain {
   def init {
     (new Thread(new Runnable {
           def run {
-            ZKMaster.this.initializeAndRun(Array("9822", "/tmp"))
+            ZKMaster.this.initializeAndRun(Array("9822", workingDir))
           }
         }, "Zookeeper")).start()
 

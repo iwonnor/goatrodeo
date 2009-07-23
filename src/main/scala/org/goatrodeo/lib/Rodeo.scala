@@ -140,7 +140,7 @@ private final class TRefImpl[T <: QBase](ref: Ref[T])(implicit mt: Manifest[T]) 
   private var _value: Option[T] = Some(Transaction.read(ref))
 
   def is: T = {
-   _value match {
+    _value match {
       case Some(r) => r
       case _ => val rv = ref.default
         _value = Some(rv)
@@ -203,7 +203,18 @@ object Transaction extends Watcher {
   //private var data: Map[String, (Long, Any)] = Map()
   private val localStore: HashMap[String, QBase] = new HashMap
 
-  private val zkServer = {val ret = new ZKMaster; ret.init; ret}
+  private val myStore = "/tmp/"+randomString(20)+"/"
+  (new File(myStore)).mkdir
+
+  try {
+    println("About to start Cassandra")
+    (new CassandraMgr(myStore)).startCassandra()
+    println("Started Cassandra")
+  } catch {
+    case e => e.printStackTrace()
+  }
+
+  private val zkServer = {val ret = new ZKMaster(myStore); ret.init; ret}
 
   private val zk = try {
     val ret = new ZooKeeper("localhost:9822", 5000, this)
