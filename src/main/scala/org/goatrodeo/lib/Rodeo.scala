@@ -218,6 +218,11 @@ object Transaction extends Watcher {
     ret
   } catch {case e => e.printStackTrace; throw e}
 
+  try {
+    (new CClient).doIt()
+  } catch {
+    case e: Exception => e.printStackTrace
+  }
 
   private val xactDepth: ThreadGlobal[Int] = new ThreadGlobal
   // private val xaCache: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal

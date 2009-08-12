@@ -75,6 +75,12 @@ systems.
     </dependency>
 
     <dependency>
+      <groupId>org.apache</groupId>
+      <artifactId>thrift</artifactId>
+      <version>1.0</version>
+    </dependency>
+
+    <dependency>
       <groupId>net.liftweb</groupId>
       <artifactId>lift-util</artifactId>
       <version>1.0</version>
