@@ -19,9 +19,13 @@ import _root_.org.specs._
 import _root_.org.specs.runner._
 import _root_.org.specs.Sugar._
 
+import net.liftweb.util._
+
 class BasicTest extends Runner(BasicSpec) with JUnit with Console
 
 object LongRef extends Ref[QLong](0L)
+
+object AnotherRef extends Ref[QInt](55)
 
 object BasicSpec extends Specification {
   "A Ref" can {
@@ -40,6 +44,31 @@ object BasicSpec extends Specification {
       for (lr <- LongRef) {
         lr.value mustBe 4L
       }
+    }
+
+    "be nestable" in {
+
+      val res = for {
+        lr <- LongRef
+        ir <- AnotherRef
+      } yield {
+        val old: Long = lr.value
+        val oldInt: Int = ir.value
+        ir.value = 33
+        lr.value = 18L
+        old
+      }
+
+      res must_== Full(4L)
+
+      for {
+        lr <- LongRef
+        ir <- AnotherRef
+      } {
+        ir.value mustBe 33
+        lr.value mustBe 18L
+      }
+
     }
 
     "Must retry if another thread changes things" in {
