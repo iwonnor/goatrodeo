@@ -46,6 +46,19 @@ systems.
       <name>Scala-Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
     </repository>
+
+    <repository>
+      <id>scala-tools.org</id>
+      <name>Scala-Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-plugins</url>
+    </repository>
+
+    <repository>
+      <id>project.embedded.module</id>
+      <name>Project Embedded Repository</name>
+      <url>file://${basedir}/embedded-repo</url>
+    </repository>
+
   </repositories>
 
   <pluginRepositories>
@@ -66,18 +79,6 @@ systems.
       <groupId>org.apache</groupId>
       <artifactId>zookeeper</artifactId>
       <version>3.2.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache</groupId>
-      <artifactId>cassandra</artifactId>
-      <version>0.4.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache</groupId>
-      <artifactId>thrift</artifactId>
-      <version>1.0</version>
     </dependency>
 
     <dependency>

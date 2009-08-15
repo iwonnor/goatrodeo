@@ -206,6 +206,7 @@ object Transaction extends Watcher {
   private val myStore = "/tmp/"+randomString(20)+"/"
   (new File(myStore)).mkdir
 
+  /*
   try {
     println("About to start Cassandra")
     (new CassandraMgr(myStore)).startCassandra()
@@ -213,6 +214,7 @@ object Transaction extends Watcher {
   } catch {
     case e => e.printStackTrace()
   }
+  */
 
   private val zkServer = {val ret = new ZKMaster(myStore); ret.init; ret}
 
@@ -229,11 +231,13 @@ object Transaction extends Watcher {
     ret
   } catch {case e => e.printStackTrace; throw e}
 
+  /*
   try {
     (new CClient).doIt()
   } catch {
     case e: Exception => e.printStackTrace
   }
+  */
 
   private val xactDepth: ThreadGlobal[Int] = new ThreadGlobal
   // private val xaCache: ThreadGlobal[HashMap[String, Long]] = new ThreadGlobal

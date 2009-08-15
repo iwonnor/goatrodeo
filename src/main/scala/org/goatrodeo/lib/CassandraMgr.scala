@@ -7,6 +7,7 @@
 
 package org.goatrodeo.lib
 
+/*
 import org.apache.cassandra.service.CassandraDaemon
 
 import java.io._
@@ -270,3 +271,4 @@ log4j.appender.R.File="""+workingDir+"""/logs/system.log
 
   init()
 }
+*/
