@@ -1,21 +1,19 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.goatrodeo</groupId>
-  <artifactId>rodeo</artifactId>
-  <packaging>jar</packaging>
-  <url>http://goatrodeo.org</url>
-  <version>0.1-SNAPSHOT</version>
+  <artifactId>top</artifactId>
+  <packaging>pom</packaging>
   <name>Goat Rodeo</name>
+  <version>0.1-SNAPSHOT</version>
+  <url>http://goatrodeo.org</url>
   <inceptionYear>2009</inceptionYear>
   <description>
-Goat Rodeo is a Scala-based transactional system that shares
-semantics between in-memory, RDBMS persisted, and cloud persisted
-systems.
+Distributed business logic, transaction, and persistence system
   </description>
   <organization>
-    <name>WorldWide Conferencing, LLC</name>
-    <url>http://goatrodeo.org</url>
+    <name>Goat Rodeo Clowns</name>
+    <url>http://goatrodeo.org/</url>
   </organization>
   <licenses>
     <license>
@@ -29,103 +27,114 @@ systems.
       <id>dpp</id>
       <name>David Pollak</name>
       <timezone>-8</timezone>
-      <email>feeder.of.the.bears [at] gmail.com</email>
+      <email>dpp [at] liftweb.net</email>
       <roles>
         <role>BDFL</role>
         <role>Feeder of the Bears</role>
       </roles>
     </developer>
   </developers>
+
+  <scm>
+    <connection>scm:git:git://github.com/dpp/goatrodeo.git</connection>
+    <developerConnection>scm:git:git@github.com:dpp/goatrodeo.git</developerConnection>
+    <url>http://github.com/dpp/liftweb/tree/master</url>
+  </scm>
+  <ciManagement>
+    <system>hudson</system>
+    <url>http://hudson.scala-tools.org/goatrodeo/</url>
+  </ciManagement>
   <properties>
     <scala.version>2.7.5</scala.version>
   </properties>
-
-  <repositories>
-    <repository>
-      <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
-      <url>http://scala-tools.org/repo-releases</url>
-    </repository>
-
-    <repository>
-      <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
-      <url>http://scala-tools.org/repo-plugins</url>
-    </repository>
-
-    <repository>
-      <id>project.embedded.module</id>
-      <name>Project Embedded Repository</name>
-      <url>file://${basedir}/embedded-repo</url>
-    </repository>
-
-  </repositories>
-
+  <modules>
+    <module>rodeo-plugin</module>
+    <module>rodeo-xaction</module>
+  </modules>
   <pluginRepositories>
     <pluginRepository>
       <id>scala-tools.org</id>
-      <name>Scala-Tools Maven2 Repository</name>
+      <name>Scala Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-releases</url>
     </pluginRepository>
   </pluginRepositories>
-
-  <dependencies> 
-    <dependency>
-      <groupId>org.scala-lang</groupId>
-      <artifactId>scala-library</artifactId>
-      <version>${scala.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>org.apache</groupId>
-      <artifactId>zookeeper</artifactId>
-      <version>3.2.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.liftweb</groupId>
-      <artifactId>lift-util</artifactId>
-      <version>1.0</version>
-    </dependency>
-   <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.scala-tools.testing</groupId>
-      <artifactId>specs</artifactId>
-      <version>1.5.0</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.scalacheck</groupId>
-      <artifactId>scalacheck</artifactId>
-      <version>1.5</version>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.scalatest</groupId>
-      <artifactId>scalatest</artifactId>
-      <version>0.9.4</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.5</version>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>
-
+  <repositories>
+    <repository>
+      <id>scala-tools.org</id>
+      <name>Scala Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-releases</url>
+    </repository>
+    <repository>
+      <id>scala-tools.org.snapshots</id>
+      <name>Scala Tools Maven2 Repository</name>
+      <url>http://scala-tools.org/repo-snapshots</url>
+      <snapshots />
+    </repository>
+  </repositories>
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>org.scala-lang</groupId>
+        <artifactId>scala-library</artifactId>
+        <version>${scala.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>org.osgi.core</artifactId>
+        <version>1.2.0</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.apache.felix</groupId>
+        <artifactId>org.osgi.compendium</artifactId>
+        <version>1.2.0</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.scalamodules</groupId>
+        <artifactId>scalamodules-core</artifactId>
+        <version>1.1-SNAPSHOT</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.ops4j.pax.web</groupId>
+        <artifactId>pax-web-bundle</artifactId>
+        <version>0.6.0</version>
+        <scope>provided</scope>
+      </dependency>
+      <dependency>
+        <groupId>org.ops4j.pax.swissbox</groupId>
+        <artifactId>pax-swissbox-extender</artifactId>
+        <version>0.2.0</version>
+        <scope>provided</scope>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
   <build>
     <sourceDirectory>src/main/scala</sourceDirectory>
     <testSourceDirectory>src/test/scala</testSourceDirectory>
+    <extensions>
+      <extension>
+        <groupId>org.apache.maven.wagon</groupId>
+        <artifactId>wagon-webdav</artifactId>
+        <version>1.0-beta-2</version>
+      </extension>
+    </extensions>
     <plugins>
+      <!-- Helps with importing Maven projects into Eclipse correctly -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>2.0.2</version>
+        <configuration>
+          <source>1.5</source>
+          <target>1.5</target>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
+        <version>2.10.1</version>
         <executions>
           <execution>
             <goals>
@@ -135,37 +144,195 @@ systems.
           </execution>
         </executions>
         <configuration>
+          <jvmArgs>
+            <jvmArg>-Xmx1024m</jvmArg>
+          </jvmArgs>
+          <args>
+            <!-- arg>-unchecked</arg -->
+            <arg>-deprecation</arg>
+            <arg>-Xno-varargs-conversion</arg>
+          </args>
+          <scalaVersion>${scala.version}</scalaVersion>
+        </configuration>
+      </plugin>
+      <plugin>
+        <inherited>true</inherited>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-changes-plugin</artifactId>
+        <version>2.0</version>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>2.2</version>
+        <configuration>
+          <archive>
+            <manifestEntries>
+              <lift_version>${pom.version}</lift_version>
+            </manifestEntries>
+          </archive>
+        </configuration>
+      </plugin>
+    </plugins>
+    <pluginManagement>
+      <plugins>
+        <plugin>
+          <groupId>org.apache.felix</groupId>
+          <artifactId>maven-bundle-plugin</artifactId>
+          <version>2.0.0</version>
+          <extensions>true</extensions>
+          <configuration>
+            <instructions>
+              <Bundle-RequiredExecutionEnvironment>J2SE-1.5</Bundle-RequiredExecutionEnvironment>
+              <_versionpolicy>[$(@),$(version;=+;$(@)))</_versionpolicy>
+            </instructions>
+          </configuration>
+          <executions>
+            <execution>
+              <id>create-bundle</id>
+              <phase>package</phase>
+              <goals>
+                <goal>bundle</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>bundle-install</id>
+              <phase>install</phase>
+              <goals>
+                <goal>install</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+      </plugins>
+    </pluginManagement>
+  </build>
+  <reporting>
+    <plugins>
+      <plugin>
+        <artifactId>maven-project-info-reports-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.scala-tools</groupId>
+        <artifactId>maven-scala-plugin</artifactId>
+        <version>2.9</version>
+        <configuration>
+          <jvmArgs>
+            <jvmArg>-Xmx1024m</jvmArg>
+            <jvmArg>-DpackageLinkDefs=file://${basedir}/../vscaladocs-packageLinkDefs.properties</jvmArg>
+          </jvmArgs>
+          <args>
+            <arg>-unchecked</arg></args>
+          <vscaladocVersion>1.2-SNAPSHOT</vscaladocVersion>
           <scalaVersion>${scala.version}</scalaVersion>
         </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-eclipse-plugin</artifactId>
+        <artifactId>maven-changes-plugin</artifactId>
+        <version>2.0-beta-3</version>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>changes-report</report>
+            </reports>
+          </reportSet>
+        </reportSets>
         <configuration>
-          <downloadSources>true</downloadSources>
-          <buildcommands>
-            <buildcommand>ch.epfl.lamp.sdt.core.scalabuilder</buildcommand>
-          </buildcommands>
-          <additionalProjectnatures>
-            <projectnature>ch.epfl.lamp.sdt.core.scalanature</projectnature>
-          </additionalProjectnatures>
-          <classpathContainers>
-            <classpathContainer>org.eclipse.jdt.launching.JRE_CONTAINER</classpathContainer>
-            <classpathContainer>ch.epfl.lamp.sdt.launching.SCALA_CONTAINER</classpathContainer>
-          </classpathContainers>
+          <!--issueLinkTemplate>%URL%/detail?id=%ISSUE%</issueLinkTemplate-->
+          <xmlPath>${basedir}/src/changes/changes.xml</xmlPath>
         </configuration>
       </plugin>
-    </plugins>
-  </build>
-  <reporting>
-    <plugins>
       <plugin>
-        <groupId>org.scala-tools</groupId>
-        <artifactId>maven-scala-plugin</artifactId>
+        <artifactId>maven-surefire-report-plugin</artifactId>
         <configuration>
-          <scalaVersion>${scala.version}</scalaVersion>
-        </configuration>
+          <!--showSuccess>false</showSuccess--></configuration>
+        <reportSets>
+          <reportSet>
+            <reports>
+              <report>report-only</report>
+            </reports>
+          </reportSet>
+        </reportSets>
       </plugin>
     </plugins>
   </reporting>
+  <distributionManagement>
+    <!--
+    <snapshotRepository>
+      <id>scala-tools.org</id>
+      <url>dav:http://dav.scala-tools.org/repo-snapshots</url>
+      <uniqueVersion>false</uniqueVersion>
+    </snapshotRepository>
+    -->
+  </distributionManagement>
+  <profiles>
+    <profile>
+      <id>release</id>
+      <!--
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-assembly-plugin</artifactId>
+            <configuration>
+              <descriptorRefs>
+                <descriptorRef>project</descriptorRef>
+              </descriptorRefs>
+              <tarLongFileMode>gnu</tarLongFileMode>
+            </configuration>
+            <executions>
+              <execution>
+                <id>make-assembly</id>
+                <phase>package</phase>
+                <goals>
+                  <goal>attached</goal>
+                </goals>
+              </execution>
+            </executions>
+          </plugin>
+        </plugins>
+      </build>
+      -->
+      <distributionManagement>
+        <repository>
+          <id>scala-tools.org</id>
+          <url>http://nexus.scala-tools.org/content/repositories/releases</url>
+        </repository>
+        <site>
+          <id>scala-tools.org</id>
+          <!--url>dav:http://dav.scala-tools.org/mvnsites/liftweb</url-->
+          <url>file://${user.home}/.m2/mvnsites/liftweb</url>
+        </site>
+      </distributionManagement>
+    </profile>
+    <profile>
+      <id>hudson</id>
+      <distributionManagement>
+        <repository>
+          <id>hudson.scala-tools.org</id>
+          <url>file:///home/scala-tools.org/www/repo-snapshots</url>
+        </repository>
+        <snapshotRepository>
+          <id>hudson.scala-tools.org</id>
+          <url>file:///home/scala-tools.org/www/repo-snapshots</url>
+          <uniqueVersion>false</uniqueVersion>
+        </snapshotRepository>
+        <site>
+          <id>hudson.scala-tools.org</id>
+          <url>file:///home/scala-tools.org/www/mvnsites-snapshots/liftweb</url>
+        </site>
+      </distributionManagement>
+    </profile>
+  </profiles>
 </project>

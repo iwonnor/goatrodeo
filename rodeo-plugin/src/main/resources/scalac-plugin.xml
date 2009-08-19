@@ -1,0 +1,4 @@
+<plugin>
+  <name>Harpoon</name>
+  <classname>me.harpoon.plugin.TemplatePlugin</classname>
+</plugin>
