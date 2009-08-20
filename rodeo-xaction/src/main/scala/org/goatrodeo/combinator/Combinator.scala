@@ -127,7 +127,7 @@ object Combinator {
     
     protected def block: Block[Distributee :: In, Out]
 
-    def to(blk: Block[Distributee :: In, Out]): Distributor[T, In, Out, Distributee] = {
+    def *(blk: Block[Distributee :: In, Out]): Distributor[T, In, Out, Distributee] = {
       val self = this
 
       new Distributor[T, In, Out,  Distributee] {

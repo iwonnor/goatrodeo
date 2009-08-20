@@ -1,4 +1,4 @@
 <plugin>
-  <name>Harpoon</name>
-  <classname>me.harpoon.plugin.TemplatePlugin</classname>
+  <name>Goat Rodeo</name>
+  <classname>org.goatrodeo.plugin.TemplatePlugin</classname>
 </plugin>
