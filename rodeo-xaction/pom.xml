@@ -62,9 +62,9 @@ systems.
       <version>${scala.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.apache</groupId>
+      <groupId>org.apache.hadoop.zookeeper</groupId>
       <artifactId>zookeeper</artifactId>
-      <version>3.2.0</version>
+      <version>3.2.1</version>
     </dependency>
 
     <dependency>

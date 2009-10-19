@@ -65,6 +65,13 @@ Distributed business logic, transaction, and persistence system
       <url>http://scala-tools.org/repo-releases</url>
     </repository>
     <repository>
+      <id>Chirino</id>
+      <name>ZooKeeper Repository</name>
+      <url>http://people.apache.org/~chirino/zk-repo</url>
+    </repository>
+
+
+    <repository>
       <id>scala-tools.org.snapshots</id>
       <name>Scala Tools Maven2 Repository</name>
       <url>http://scala-tools.org/repo-snapshots</url>
