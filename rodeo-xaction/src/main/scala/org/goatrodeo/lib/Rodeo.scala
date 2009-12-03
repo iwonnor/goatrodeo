@@ -19,6 +19,7 @@
 package org.goatrodeo.lib
 
 import net.liftweb.util._
+import net.liftweb.common._
 import Helpers._
 
 import org.apache.zookeeper._

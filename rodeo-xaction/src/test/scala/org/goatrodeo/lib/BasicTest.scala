@@ -20,6 +20,7 @@ import _root_.org.specs.runner._
 import _root_.org.specs.Sugar._
 
 import net.liftweb.util._
+import net.liftweb.common._
 
 class BasicTest extends Runner(BasicSpec) with JUnit with Console
 

@@ -9,7 +9,7 @@
   <url>http://goatrodeo.org</url>
   <inceptionYear>2009</inceptionYear>
   <description>
-Distributed business logic, transaction, and persistence system
+    Distributed business logic, transaction, and persistence system
   </description>
   <organization>
     <name>Goat Rodeo Clowns</name>
@@ -45,7 +45,7 @@ Distributed business logic, transaction, and persistence system
     <url>http://hudson.scala-tools.org/goatrodeo/</url>
   </ciManagement>
   <properties>
-    <scala.version>2.7.5</scala.version>
+    <scala.version>2.7.7</scala.version>
   </properties>
   <modules>
     <module>rodeo-plugin</module>
@@ -141,7 +141,7 @@ Distributed business logic, transaction, and persistence system
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
-        <version>2.10.1</version>
+        <version>2.12.2</version>
         <executions>
           <execution>
             <goals>
@@ -233,7 +233,7 @@ Distributed business logic, transaction, and persistence system
       <plugin>
         <groupId>org.scala-tools</groupId>
         <artifactId>maven-scala-plugin</artifactId>
-        <version>2.9</version>
+        <version>2.12.2</version>
         <configuration>
           <jvmArgs>
             <jvmArg>-Xmx1024m</jvmArg>

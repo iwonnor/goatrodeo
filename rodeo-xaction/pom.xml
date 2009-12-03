@@ -72,6 +72,16 @@ systems.
       <artifactId>lift-util</artifactId>
       <version>1.1-SNAPSHOT</version>
     </dependency>
+    <dependency>
+      <groupId>net.liftweb</groupId>
+      <artifactId>lift-json</artifactId>
+      <version>1.1-SNAPSHOT</version>
+    </dependency>
+    <dependency>
+      <groupId>net.liftweb</groupId>
+      <artifactId>lift-common</artifactId>
+      <version>1.1-SNAPSHOT</version>
+    </dependency>
    <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
@@ -81,7 +91,7 @@ systems.
     <dependency>
       <groupId>org.scala-tools.testing</groupId>
       <artifactId>specs</artifactId>
-      <version>1.5.0</version>
+      <version>1.6.1</version>
       <scope>test</scope>
     </dependency>
     <dependency>
